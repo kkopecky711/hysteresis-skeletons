@@ -60,20 +60,8 @@ ggplot(macroalgae.summary, aes(x = herb_ttt_cm, y = norm_macro.mean, color = ini
 
 ```{r Statistics}
 
-## Structure
-# Create separate dataframes for each structure treatment
-structure <- macroalgae %>% 
-  filter(structure_ttt == "Dead skeletons") %>% 
-  mutate(mac_cover.prop = (mac_cover_percent + 0.001)/100,
-         mac_cover.asin = asin(sqrt(mac_cover.prop)))
-
-hist(structure$mac_cover.asin)
-
-# Run PermANOVA of macroalgae cover ~ herbivory treatment for each structure treatment
-structure_perm <- adonis2(structure$mac_cover.asin ~ herb_ttt_cm*initial_community, data = structure)
-print(structure_perm)
-
 ## No structure
+# Dataframe with only no structure treatment
 no_structure <- macroalgae %>% 
   filter(structure_ttt == "No structure") %>% 
   mutate(mac_cover.prop = (mac_cover_percent + 0.001)/100,
@@ -82,9 +70,22 @@ no_structure <- macroalgae %>%
 hist(no_structure$mac_cover.prop)
 hist(no_structure$mac_cover.asin)
 
-# Run PermANOVA of macroalgae cover ~ herbivory treatment for each structure treatment
+# Run PermANOVA of macroalgae cover ~ herbivory treatment for no structure treatment
 no_structure.perm <- adonis2(no_structure$mac_cover.asin ~ herb_ttt_cm*initial_community, data = no_structure)
 print(no_structure.perm)
+
+## With structure
+# Create separate dataframes for each structure treatment
+structure <- macroalgae %>% 
+  filter(structure_ttt == "Dead skeletons") %>% 
+  mutate(mac_cover.prop = (mac_cover_percent + 0.001)/100,
+         mac_cover.asin = asin(sqrt(mac_cover.prop)))
+
+hist(structure$mac_cover.asin)
+
+# Run PermANOVA of macroalgae cover ~ herbivory treatment for with structure treatment
+structure_perm <- adonis2(structure$mac_cover.asin ~ herb_ttt_cm*initial_community, data = structure)
+print(structure_perm)
 
 ```
 
