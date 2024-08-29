@@ -26,12 +26,17 @@ macroalgae <- read_csv("Data/material legacy hysteresis experiment.csv") %>%
   mutate(structure_ttt = as.factor(structure_ttt),
          initial_community = as.factor(initial_community),
          herbivory_ttt = as.factor(herbivory_ttt),
-         herb_ttt_cm = as.factor(herb_ttt_cm))
+         herb_ttt_cm = as.factor(herb_ttt_cm),
+         mac_cover.prop = (mac_cover_percent + 0.01)/100,
+         mac_cover.asin = asin(sqrt(mac_cover.prop)))
 
 macroalgae.summary <- macroalgae %>%
   group_by(structure_ttt, initial_community, herb_ttt_cm) %>% 
   summarize(norm_macro.mean = mean(mac_cover_normalized),
-            norm_macro.se = sd(mac_cover_normalized)/sqrt(n()))
+            norm_macro.se = sd(mac_cover_normalized)/sqrt(n()),
+            norm_macro.ci = norm_macro.se*2.015,
+            asin_macro.mean = mean(mac_cover.asin),
+            asin_macro.se = sd(mac_cover.asin)/sqrt(n()))
 
 macroalgae.summary$herb_ttt_cm <- ordered(macroalgae.summary$herb_ttt_cm, levels = c("2.5", "5", "7.5", "10", "Ambient"))
 
@@ -39,8 +44,8 @@ macroalgae.summary$structure_ttt <- ordered(macroalgae.summary$structure_ttt, le
 
 ggplot(macroalgae.summary, aes(x = herb_ttt_cm, y = norm_macro.mean, color = initial_community)) +
   geom_line(aes(group = initial_community)) +
-  geom_errorbar(aes(ymax = norm_macro.mean + norm_macro.se,
-                    ymin = norm_macro.mean - norm_macro.se),
+  geom_errorbar(aes(ymax = norm_macro.mean + norm_macro.ci,
+                    ymin = norm_macro.mean - norm_macro.ci),
                 width = 0.1,
                 color = "black") +
   geom_point(size = 3,
@@ -51,42 +56,348 @@ ggplot(macroalgae.summary, aes(x = herb_ttt_cm, y = norm_macro.mean, color = ini
   scale_color_manual(name = "Initial community state",
                      values = c("#A1B654", "#287DAB"),
                      labels = c("Macroalgae", "Turf algae")) +
-  scale_y_continuous(limits = c(0,1.2),
+  scale_y_continuous(#limits = c(0,1.2),
                      breaks = c(0.0, 0.25, 0.5, 0.75, 1.0)) +
+  facet_wrap(~structure_ttt) +
+  theme_classic(base_size = 12)
+
+# Asin graph
+ggplot(macroalgae.summary, aes(x = herb_ttt_cm, y = asin_macro.mean, color = initial_community)) +
+  geom_line(aes(group = initial_community)) +
+  geom_errorbar(aes(ymax = asin_macro.mean + asin_macro.se,
+                    ymin = asin_macro.mean - asin_macro.se),
+                width = 0.1,
+                color = "black") +
+  geom_point(size = 3,
+             color = "black") +
+  geom_point(size = 2) +
+  labs(y = "Macroalgae cover (arcsin transformed)",
+       x = "Herbivory treatment") +
+  scale_color_manual(name = "Initial community state",
+                     values = c("#A1B654", "#287DAB"),
+                     labels = c("Macroalgae", "Turf algae")) +
+  # scale_y_continuous(limits = c(0,1.2),
+  #                    breaks = c(0.0, 0.25, 0.5, 0.75, 1.0)) +
   facet_wrap(~structure_ttt) +
   theme_classic(base_size = 12)
 
 ```
 
 ```{r Statistics}
-
+#### Percent cover PermANOVA
 ## No structure
 # Dataframe with only no structure treatment
 no_structure <- macroalgae %>% 
   filter(structure_ttt == "No structure") %>% 
-  mutate(mac_cover.prop = (mac_cover_percent + 0.001)/100,
+  mutate(mac_cover.prop = (mac_cover_percent + 0.01)/100,
          mac_cover.asin = asin(sqrt(mac_cover.prop)))
 
 hist(no_structure$mac_cover.prop)
 hist(no_structure$mac_cover.asin)
 
 # Run PermANOVA of macroalgae cover ~ herbivory treatment for no structure treatment
-no_structure.perm <- adonis2(no_structure$mac_cover.asin ~ herb_ttt_cm*initial_community, data = no_structure)
+no_structure.perm <- adonis2(no_structure$mac_cover.prop ~ herb_ttt_cm*initial_community, 
+                             data = no_structure)
 print(no_structure.perm)
 
 ## With structure
 # Create separate dataframes for each structure treatment
 structure <- macroalgae %>% 
   filter(structure_ttt == "Dead skeletons") %>% 
-  mutate(mac_cover.prop = (mac_cover_percent + 0.001)/100,
+  mutate(mac_cover.prop = (mac_cover_percent + 0.01)/100,
          mac_cover.asin = asin(sqrt(mac_cover.prop)))
 
 hist(structure$mac_cover.asin)
 
 # Run PermANOVA of macroalgae cover ~ herbivory treatment for with structure treatment
-structure_perm <- adonis2(structure$mac_cover.asin ~ herb_ttt_cm*initial_community, data = structure)
+structure_perm <- adonis2(structure$mac_cover.prop ~ herb_ttt_cm*initial_community, 
+                          data = structure)
 print(structure_perm)
 
+#### Biomass PermANOVA
+biomass <- read_csv("Data/material legacy hysteresis experiment_mac biomass.csv") %>% 
+  clean_names() %>% 
+  mutate(structure_ttt = as.factor(structure_ttt),
+         initial_community = as.factor(initial_community),
+         herbivory_ttt = as.factor(herbivory_ttt),
+         herb_ttt_cm = as.factor(herb_ttt_cm),
+         mac_biomass.const = mac_biomass_gm + 0.1)
+
+## No structure
+# Dataframe with only no structure treatment
+biomass.no_structure <- biomass %>% 
+  filter(structure_ttt == "None")
+
+# Run PermANOVA of macroalgae cover ~ herbivory treatment for no structure treatment
+biomass.no_structure.perm <- adonis2(biomass.no_structure$mac_biomass.const ~ herb_ttt_cm*initial_community, 
+                                     data = biomass.no_structure)
+print(biomass.no_structure.perm)
+
+## With structure
+biomass.structure <- biomass %>% 
+  filter(structure_ttt == "Skeletons")
+
+# Run PermANOVA of macroalgae cover ~ herbivory treatment for structure treatment
+biomass.structure.perm <- adonis2(biomass.structure$mac_biomass.const ~ herb_ttt_cm*initial_community, 
+                                     data = biomass.structure)
+print(biomass.structure.perm)
 ```
+
+```{r}
+## T tests of macroalgal cover at ambient herbivory between initial community states
+# No dead skeleton structure
+no_structure.amb <- no_structure %>% 
+  filter(herb_ttt_cm == "Ambient") %>% 
+  mutate(mac_cover_normalized = (mac_cover_normalized + 0.001))
+
+no_structure.amb.t_test <- t.test(mac_cover.asin ~ initial_community, data = no_structure.amb)
+
+# With dead skeleton structure
+structure.amb <- structure %>% 
+  filter(herb_ttt_cm == "Ambient") #%>% 
+  mutate(mac_cover_normalized = (mac_cover_normalized + 0.001)) #%>% 
+  # group_by(initial_community) %>% 
+  # summarize(mean = (mac_cover_normalized + 0.001))
+
+structure.amb.t_test <- t.test(mac_cover.asin ~ initial_community, data = structure.amb)
+
+## Biomass
+# With dead skeleton structure
+biomass.structure.amb <- biomass.structure %>% 
+  filter(herb_ttt_cm == "Ambient") %>% 
+  
+
+structure.amb.t_test <- t.test(mac_cover.asin ~ initial_community, data = structure.amb)
+
+```
+
+
+## Moorea time series
+```{r}
+
+# Laod wide data table
+mcr_coral.wide <- read_csv("Data/knb-lter-mcr.4_2_20240105.csv") %>% 
+  clean_names() %>% 
+  select(-c(3:6)) 
+
+# Convert to long format
+mcr_coral.long <- mcr_coral.wide %>% 
+  pivot_longer(cols = c(3:30), names_to = "taxa", values_to = "percent_cover") %>%
+  mutate(funct_group = case_when(taxa == "macroalgae" ~ "Macroalgae",
+                                 TRUE ~ "Hard coral"),
+         percent_cover = replace(percent_cover, percent_cover == "na", 0),
+         percent_cover = as.numeric(percent_cover))
+
+# Filter for 10m for reef transects at LTER 1 & 2 only
+mcr_coral.shortened <- mcr_coral.long %>% 
+  mutate(site = str_sub(location, 0, 6)) %>% 
+  filter(str_detect(location, "Outer 10 m"),
+         site == "LTER 1" | site == "LTER 2",
+         taxa != "millepora",
+         taxa != "unknown_or_other")
+
+# Total up percent cover of different taxa to get total cover of coral adn macroalgae
+mcr_coral.totals <- mcr_coral.shortened %>% 
+  group_by(date, location, funct_group) %>% 
+  summarize(percent_cover.total = sum(percent_cover))
+
+# Check number of reps is consistent throught time and between coral and algae
+mcr_coral.reps <- mcr_coral.totals %>% 
+  group_by(date, funct_group) %>% 
+  summarize(reps = n())
+
+# Summarize cover over time
+mcr_coral.summary <- mcr_coral.totals %>% 
+  group_by(date, funct_group) %>% 
+  summarize(mean_cover = round(mean(percent_cover.total), 1),
+            se_cover = round(sd(percent_cover.total)/sqrt(n()), 1),
+            mean_cover.log = round(log10(mean_cover), 1),
+            se_cover.log = round(log10(se_cover), 1))
+
+write_csv(mcr_coral.summary, "Data/MCR_coral-algae_summary.csv")
+
+```
+
+```{r}
+# Create dataframe for the four years following Cyclone Oli and the bleaching event
+mcr_coral.dist <- mcr_coral.summary %>% 
+  filter(date %in% c(2010, 2011, 2012, 2013, 2014, 2015, 2019, 2020, 2021, 2022)) %>%
+  mutate(disturbance = if_else(date < 2019, "Cyclone", "Bleaching"),
+         years_since_dist = case_when(date == "2010" ~ "0",
+                                      date == "2011" ~ "1",
+                                      date == "2012" ~ "2",
+                                      date == "2013" ~ "3",
+                                      date == "2014" ~ "4",
+                                      date == "2015" ~ "5",
+                                      date == "2019" ~ "0",
+                                      date == "2020" ~ "1",
+                                      date == "2021" ~ "2",
+                                      date == "2022" ~ "3"),
+         disturbance = as.factor(disturbance),
+         disturbance = fct_relevel(disturbance, "Cyclone", "Bleaching"))
+
+# Visualization of coral and macroalgae cover after Cyclone Oli and bleaching event
+ggplot(mcr_coral.dist, aes(x = years_since_dist, y = mean_cover, color = funct_group)) +
+  geom_line(aes(group = funct_group)) +
+  geom_errorbar(aes(ymax = mean_cover + se_cover,
+                    ymin = mean_cover - se_cover),
+                width = 0.05) +
+  geom_point(size = 3) +
+  geom_point(color = "grey",
+             size = 1.5) +
+  labs(y = "Percent cover",
+       x = "Years since disturbance") +
+  scale_color_manual(name = "",
+                     values = c("#5FA1F7","#83A552"),
+                     labels = c("Coral", "Macroalgae")) +
+  facet_wrap(~disturbance) +
+  theme_classic()
+
+
+# Visualization of coral and macroalgae cover after Cyclone Oli and bleaching event, log scale
+ggplot(mcr_coral.dist, aes(x = years_since_dist, y = mean_cover.log, color = funct_group)) +
+  geom_line(aes(group = funct_group)) +
+  geom_errorbar(aes(ymax = mean_cover.log + se_cover.log,
+                    ymin = mean_cover.log - se_cover.log),
+                width = 0.05) +
+  geom_point(size = 3) +
+  geom_point(color = "grey",
+             size = 1.5) +
+  labs(y = "Percent cover",
+       x = "Years since disturbance") +
+  scale_color_manual(name = "",
+                     values = c("#5FA1F7","#83A552"),
+                     labels = c("Coral", "Macroalgae")) +
+  facet_wrap(~disturbance) +
+  theme_classic()
+
+```
+
+```{r}
+## Comparison between Bob and Pete's estimates of macroalgae
+# Pete's data
+mcr_coral.algae_only <- mcr_coral.summary %>% 
+  filter(funct_group == "Macroalgae",
+         date != "2006",
+         date != "2021") %>% 
+  select(-c(funct_group)) %>% 
+  rename(mean_cover.Pete = mean_cover,
+         year = date)
+
+# Bob's data
+# Read in and clean MCR algae data, removing non-macroalgal taxa
+mcr_algae <- read_csv("Data/MCR_LTER_Annual_Survey_Benthic_Cover_20231211.csv") %>% 
+  clean_names() %>% 
+  filter(site == c("LTER 1", "LTER 2"),
+         habitat == "Outer 10",
+         taxonomy_substrate_functional_group != "Sand", 
+         taxonomy_substrate_functional_group != "Algal Turf", 
+         taxonomy_substrate_functional_group != "Crustose Corallines", 
+         taxonomy_substrate_functional_group != "Millepora platyphylla", 
+         taxonomy_substrate_functional_group != "Non-coralline Crustose Algae",
+         taxonomy_substrate_functional_group != "Sponge",
+         taxonomy_substrate_functional_group != "Cyanophyta",
+         taxonomy_substrate_functional_group != "Coral")
+
+# Calculate quadrat totals
+mcr_algae.quads <- mcr_algae %>% 
+  group_by(year, location) %>% 
+  summarize(perc_cover = sum(percent_cover))
+
+# Summarize macroalgae cover by year
+mcr_algae.summary <- mcr_algae.quads %>% 
+  group_by(year) %>% 
+  summarize(mean_cover.Bob = round(mean(perc_cover), 1), 
+            perc_cover.se = round(sd(perc_cover)/sqrt(n()), 1)) #%>% 
+  #filter(year != 2023)
+  
+  
+Pete_Bob <- merge(mcr_coral.algae_only, mcr_algae.summary)
+
+ggplot(Pete_Bob, aes(x = mean_cover.Bob, y = mean_cover.Pete)) +
+  geom_point() +
+  geom_abline() +
+  theme_classic()
+
+Pete_Bob.long <- Pete_Bob %>% 
+  pivot_longer(cols = c(mean_cover.Pete, mean_cover.Bob), names_to = "Guy", values_to = "mean_cover")
+
+ggplot(Pete_Bob.long, aes(x = year, y = mean_cover, color = Guy)) +
+    geom_line(aes(group = Guy)) +
+    geom_point() +
+    scale_color_manual(values = c("blue", "red"),
+                       labels = c("Bob", "Pete"),
+                       name = "Guy") +
+    theme_classic()
+```
+
+```{r}
+
+# histogram of 2022 macroalgal cover by quadrat
+mcr_algae.2011_2022 <- mcr_coral.totals %>% 
+  filter(date %in% c("2015", "2022")) %>% 
+  mutate(date = as.factor(date))
+
+hist(mcr_algae.2022$percent_cover.total)
+median(mcr_algae.2020_2022$percent_cover.total)
+
+ggplot(mcr_algae.2011_2022, aes(x = date, y = percent_cover.total, fill = funct_group)) +
+  geom_violin() 
+
+
+mcr_algae.2011_2014 <- mcr_coral.totals %>% 
+  filter(date %in% c("2011", "2012", "2013", "2014"), 
+         funct_group == "Macroalgae") %>% 
+  mutate(date = as.factor(date))
+
+ggplot(mcr_algae.2020_2022, aes(x = date, y = percent_cover.total)) +
+  geom_boxplot()
+```
+
+```{r}
+
+mcr_algae.2011_2022 %>% 
+  filter(date == "2015") %>% 
+  ggplot(aes(x = percent_cover.total)) +
+  geom_histogram(binwidth = 5,
+                 color = "black") +
+  facet_wrap(~funct_group)
+
+mcr_algae.2011_2022 %>% 
+  filter(date == "2022") %>% 
+  ggplot(aes(x = percent_cover.total)) +
+  geom_histogram(binwidth = 5,
+                 color = "black") +
+  facet_wrap(~funct_group)
+
+```
+
+```{r}
+
+mcr_algae.bivariate <- mcr_coral.totals %>% 
+  pivot_wider(names_from = funct_group, values_from = percent_cover.total) %>% 
+  rename(Hard_coral = 'Hard coral')
+
+ggplot(mcr_algae.bivariate, aes(x = Macroalgae, y = Hard_coral)) +
+  geom_point(alpha = 0.7) +
+  geom_hline(yintercept = 25) +
+  geom_vline(xintercept = 25) +
+  #facet_wrap(~date) +
+  theme_classic()
+
+mcr_algae.bivariate.n <- mcr_algae.bivariate %>% 
+  filter(Macroalgae >= 25 & Hard_coral >= 25) 
+
+```
+
+```{r}
+mcr_coral <- read_csv("Data/MCR_coral data.csv") %>% 
+  clean_names()
+
+unique(mcr_coral$taxonomy_substrate_or_functional_group)
+```
+
+
+
 
 
