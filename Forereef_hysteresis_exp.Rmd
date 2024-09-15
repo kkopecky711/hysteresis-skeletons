@@ -397,7 +397,213 @@ mcr_coral <- read_csv("Data/MCR_coral data.csv") %>%
 unique(mcr_coral$taxonomy_substrate_or_functional_group)
 ```
 
+```{r}
+
+mcr_2005 <- mcr_coral.long %>% 
+  mutate(site = str_sub(location, 0, 6)) %>%
+  filter(str_detect(location, "Outer 10 m"),
+         date == "2005",
+         site %in% c("LTER 1", "LTER 2"),
+         taxa != "millepora",
+         taxa != "unknown_or_other") %>% 
+  group_by(location, funct_group) %>% 
+  summarize(total_cover = sum(percent_cover))
+
+ggplot(mcr_2005, aes(x = total_cover)) +
+  geom_histogram() +
+  facet_wrap(~site)
+
+mcr_2005.summary.north <- mcr_2005 %>% 
+  group_by(funct_group) %>% 
+  summarize(mean_cover = mean(total_cover))
+
+mcr_north <- mcr_coral.long %>% 
+  mutate(site = str_sub(location, 0, 6)) %>%
+  filter(str_detect(location, "Outer 10 m"),
+         date %in% c("2005", "2006", "2014", "2015", "2022"),
+         site %in% c("LTER 1", "LTER 2"),
+         taxa != "millepora",
+         taxa != "unknown_or_other") %>% 
+  group_by(date, location, funct_group) %>% 
+  summarize(total_cover = sum(percent_cover))
+
+mcr_north.summary <- mcr_north %>% 
+  group_by(date, funct_group) %>% 
+  summarize(mean_cover = mean(total_cover))
+
+mcr_2006 <- mcr_coral.long %>% 
+  filter(str_detect(location, "Outer 10 m"),
+         date == "2006",
+         taxa != "millepora",
+         taxa != "unknown_or_other",
+         taxa != "macroalgae") %>% 
+  mutate(site = str_sub(location, 0, 6)) %>%
+  group_by(date, site, location, funct_group) %>% 
+  summarize(total_cover = sum(percent_cover))
+
+ggplot(mcr_2006, aes(x = total_cover)) +
+  geom_histogram() +
+  facet_wrap(~site)
+
+ggplot(mcr_2006, aes(x = funct_group, y = total_cover)) +
+  geom_boxplot()
+
+write_csv(mcr_2006, "Data/MCR_coral-cover-quads_2006.csv")
 
 
+mcr_2014 <- mcr_coral.long %>% 
+  mutate(site = str_sub(location, 0, 6)) %>%
+  filter(str_detect(location, "Outer 10 m"),
+         date == "2014",
+         taxa != "millepora",
+         taxa != "unknown_or_other",
+         site %in% c("LTER 1", "LTER 2")) %>%
+  group_by(location, funct_group) %>% 
+  summarize(total_cover = sum(percent_cover))
+
+ggplot(mcr_2014, aes(x = total_cover)) +
+  geom_histogram(color = "black",
+                 binwidth = 5) +
+  geom_vline(xintercept = 22.5) +
+  facet_wrap(~funct_group)
+
+mcr_2015 <- mcr_coral.long %>% 
+  mutate(site = str_sub(location, 0, 6)) %>%
+  filter(str_detect(location, "Outer 10 m"),
+         date == "2015",
+         taxa != "millepora",
+         taxa != "unknown_or_other",
+         site %in% c("LTER 1", "LTER 2")) %>%
+  group_by(location, funct_group) %>% 
+  summarize(total_cover = sum(percent_cover))
+
+ggplot(mcr_2015, aes(x = total_cover)) +
+  geom_histogram(color = "black",
+                 binwidth = 5) +
+  geom_vline(xintercept = 22.5) +
+  facet_wrap(~funct_group)
+
+mcr_2022 <- mcr_coral.long %>% 
+  mutate(site = str_sub(location, 0, 6)) %>%
+  filter(str_detect(location, "Outer 10 m"),
+         date == "2022",
+         taxa != "millepora",
+         taxa != "unknown_or_other",
+         site %in% c("LTER 1", "LTER 2")) %>%
+  group_by(location, funct_group) %>% 
+  summarize(total_cover = sum(percent_cover))
+
+ggplot(mcr_2022, aes(x = total_cover)) +
+  geom_histogram(color = "black",
+                 binwidth = 5) +
+  geom_vline(xintercept = 22.5) +
+  facet_wrap(~funct_group)
+```
+
+```{r}
+mcr_coral.LTER_1.2023 <- read_csv("Data/2023_LTER_1_10m_Coral_Analysis.csv") %>% 
+  clean_names() %>% 
+  select(-c(4,5,6)) %>% 
+  filter(taxonomy != "Millepora",
+         taxonomy != "Crustose Coralline Algae / Bare Space",
+         taxonomy != "Non-coralline Crustose Algae",
+         taxonomy != "Turf",
+         taxonomy != "Sand",
+         taxonomy != "Unknown or Other") %>% 
+  mutate(funct_group = case_when(taxonomy == "Macroalgae" ~ "Macroalgae",
+                                 TRUE ~ "Hard coral")) %>% 
+  group_by(date, site, location, funct_group) %>% 
+  summarize(total_cover = sum(percent_cover))
+
+
+mcr_coral.LTER_2.2023 <- read_csv("Data/2023_LTER_2_10m_Coral_Analysis.csv") %>% 
+  clean_names() %>% 
+  select(-c(1,3,6,8)) %>% 
+  mutate(site = str_sub(location, 0, 6),
+         funct_group = case_when(taxonomy == "Macroalgae" ~ "Macroalgae",
+                                 TRUE ~ "Hard coral"),
+         percent_cover = round(percent_cover, 1)) %>% 
+  rename(date = nominal_year) %>%
+  filter(taxonomy != "Millepora",
+         taxonomy != "Crustose Coralline Algae / Bare Space",
+         taxonomy != "Non-coralline Crustose Algae",
+         taxonomy != "Turf",
+         taxonomy != "Sand",
+         taxonomy != "Unknown or Other") %>% 
+  group_by(date, site, location, funct_group) %>% 
+  summarize(total_cover = sum(percent_cover))
+
+mcr.coral_algae.2023 <- rbind(mcr_coral.LTER_1.2023, mcr_coral.LTER_2.2023)
+
+mcr.coral_algae.2023.summary <- mcr.coral_algae.2023 %>% 
+  group_by(date, funct_group) %>% 
+  summarize(mean_cover = mean(total_cover),
+            se_cover = sd(total_cover)/sqrt(n()))
+
+ggplot(mcr.coral_algae.2023, aes(x = total_cover)) +
+  geom_histogram(color = "black",
+                 binwidth = 5) +
+  geom_vline(xintercept = 22.5) +
+  facet_wrap(~funct_group)
+
+```
+
+```{r}
+mcr_coral.LTER_1.2024 <- read_csv("Data/2024_LTER_1_10m_Coral_Analysis.csv") %>% 
+  clean_names() %>% 
+  select(-c(3,8)) %>% 
+  filter(taxonomy != "Millepora",
+         taxonomy != "Crustose Coralline Algae / Bare Space",
+         taxonomy != "Non-coralline Crustose Algae",
+         taxonomy != "Turf",
+         taxonomy != "Sand",
+         taxonomy != "Unknown or Other") %>% 
+  mutate(site = str_sub(location, 0, 6),
+         funct_group = case_when(taxonomy == "Macroalgae" ~ "Macroalgae",
+                                 TRUE ~ "Hard coral")) %>% 
+  rename(date = nominal_year) %>% 
+  group_by(date, site, location, funct_group) %>% 
+  summarize(total_cover = sum(percent_cover))
+
+mcr_coral.LTER_2.2024 <- read_csv("Data/2024_LTER_2_10m_Coral_Analysis.csv") %>% 
+  clean_names() %>% 
+  select(-c(3,8)) %>% 
+  filter(taxonomy != "Millepora",
+         taxonomy != "Crustose Coralline Algae / Bare Space",
+         taxonomy != "Non-coralline Crustose Algae",
+         taxonomy != "Turf",
+         taxonomy != "Sand",
+         taxonomy != "Unknown or Other") %>% 
+  mutate(site = str_sub(location, 0, 6),
+         funct_group = case_when(taxonomy == "Macroalgae" ~ "Macroalgae",
+                                 TRUE ~ "Hard coral")) %>% 
+  rename(date = nominal_year) %>% 
+  group_by(date, site, location, funct_group) %>% 
+  summarize(total_cover = sum(percent_cover))
+
+mcr.coral_algae.2024 <- rbind(mcr_coral.LTER_1.2024, mcr_coral.LTER_2.2024)
+
+ggplot(mcr.coral_algae.2024, aes(x = total_cover)) +
+  geom_histogram(color = "black",
+                 binwidth = 5) +
+  geom_vline(xintercept = 22.5) +
+  facet_wrap(~funct_group)
+
+mcr.coral_algae.2024.summary <- mcr.coral_algae.2024 %>% 
+  group_by(date, funct_group) %>% 
+  summarize(mean_cover = round(mean(total_cover), 2),
+            se_cover = round(sd(total_cover)/sqrt(n()), 1))
+```
+
+```{r}
+mcr.coral_algae.2005_2024 <- rbind(mcr_coral.summary, mcr.coral_algae.2023.summary, mcr.coral_algae.2024.summary)
+
+mcr.coral_algae.2005_2024 <- mcr.coral_algae.2005_2024 %>% 
+  select(-c(5,6)) %>% 
+  mutate(mean_cover = round(mean_cover, 1),
+         se_cover = round(se_cover, 1))
+
+write_csv(mcr.coral_algae.2005_2024, "Data/mcr.coral_algae.2005_2024.csv")
+```
 
 
